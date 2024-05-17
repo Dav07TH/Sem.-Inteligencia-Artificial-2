@@ -8,6 +8,9 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import SMOTE
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.utils import to_categorical
 
 # Cargar el conjunto de datos Zoo desde el archivo CSV
 zoo_data = pd.read_csv("ZOO.csv")
@@ -62,6 +65,40 @@ for name, model in models.items():
     specificity = calculate_specificity(y_test, y_test_pred)
     
     results[name] = {"Accuracy": accuracy, "Precision": precision, "Sensitivity": sensitivity, "Specificity": specificity, "F1 Score": f1}
+
+# Agregar red neuronal
+def create_neural_network(input_dim):
+    model = Sequential()
+    model.add(Dense(32, activation='relu', input_dim=input_dim))
+    model.add(Dense(16, activation='relu'))
+    model.add(Dense(7, activation='softmax'))  # 7 clases
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+# Convertir las etiquetas a una codificación one-hot
+y_resampled_categorical = to_categorical(y_resampled - 1)  # -1 porque las clases empiezan desde 1
+
+# Crear y entrenar la red neuronal
+nn_model = create_neural_network(X_train.shape[1])
+nn_model.fit(X_train, to_categorical(y_train - 1), epochs=50, batch_size=10, verbose=0)
+
+# Evaluar la red neuronal
+y_test_pred_nn = nn_model.predict(X_test)
+y_test_pred_nn_classes = y_test_pred_nn.argmax(axis=1) + 1  # +1 para ajustar el índice de clase
+
+accuracy_nn = accuracy_score(y_test, y_test_pred_nn_classes)
+precision_nn = precision_score(y_test, y_test_pred_nn_classes, average='weighted', zero_division=0)
+sensitivity_nn = recall_score(y_test, y_test_pred_nn_classes, average='weighted', zero_division=0)
+f1_nn = f1_score(y_test, y_test_pred_nn_classes, average='weighted', zero_division=0)
+specificity_nn = calculate_specificity(y_test, y_test_pred_nn_classes)
+
+results["Neural Network"] = {
+    "Accuracy": accuracy_nn,
+    "Precision": precision_nn,
+    "Sensitivity": sensitivity_nn,
+    "Specificity": specificity_nn,
+    "F1 Score": f1_nn
+}
 
 # Imprimir los resultados
 print("Resultados de la evaluación:")
